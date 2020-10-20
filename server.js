@@ -1,25 +1,39 @@
 const express = require('express');
 const app = express();
-const cors = require('cors');
-const morgan = require('morgan');
-const helmet = require('helmet');
-const path = require('path');
+const { v4: uuidV4 } = require('uuid');
+const { ExpressPeerServer } = require('peer');
 
-app.use(helmet());
-app.use(morgan('tiny'));
-app.use(cors());
-app.use(express.json());
+const server = require('http').Server(app);
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname + '/index.html'));
+const peerServer = ExpressPeerServer(server, {
+  path: '/zoom-clone',
 });
 
-app.get('/url-shortener', (req, res) => {
-  res.send({ url: 'shortener' });
+const io = require('socket.io')(server);
+
+app.set('view engine', 'ejs');
+
+app.use(express.json());
+app.use(express.static('public'));
+app.use('/peerjs', peerServer);
+
+app.get('/', (req, res) => {
+  res.redirect(`/${uuidV4()}`);
+});
+
+app.get('/:room', (req, res) => {
+  res.render('room', { roomId: req.params.room });
+});
+
+io.on('connection', (socket) => {
+  socket.on('join-room', (roomId, userId) => {
+    socket.join(roomId);
+    socket.to(roomId).broadcast.emit('user-connected', userId);
+  });
 });
 
 let port = process.env.PORT;
 if (!port || port === '') {
   port = 3000;
 }
-app.listen(port);
+server.listen(port);
