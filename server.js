@@ -9,4 +9,8 @@ app.get('/url-shortener', (req, res) => {
   res.send({ url: 'shortener' });
 });
 
-app.listen(3000);
+let port = process.env.PORT;
+if (!port || port === '') {
+  port = 3000;
+}
+app.listen(port);
